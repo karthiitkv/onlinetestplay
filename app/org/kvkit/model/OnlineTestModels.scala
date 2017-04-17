@@ -8,7 +8,7 @@ case class QuesAnsList (
 )
 
 case class QuesAns (
-    queId: Int,
+    queId: Option[Int],
     question: String,
     opt1: String,
     opt2: String,
