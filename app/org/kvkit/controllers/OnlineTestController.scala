@@ -18,12 +18,18 @@ import scala.util.{Failure, Success}
 
 class OnlineTestController @Inject() (ws: WSClient) (implicit context: ExecutionContext) extends Controller {
   
-  val allQueAnsURL = "http://onlinetest-kvkit.rhcloud.com/kvkapi/getAllQueAns"
-  //val allQueAnsURL = "http://localhost:8080/OnlineTestApp/kvkapi/getAllQueAns"
+  val hostname = "onlinetest-kvkit.rhcloud.com"
+  //val hostname = "localhost:8080/OnlineTestApp"
   
-  val getDispQueURL: String = "http://onlinetest-kvkit.rhcloud.com/kvkapi/getDisplayQueAns/{displayFilter}"
+  val allQueAnsURL = "http://"+hostname+"/kvkapi/getAllQueAns"
   
-  val addQueUrl: String = "http://onlinetest-kvkit.rhcloud.com/kvkapi/addQueAns"
+  val getDispQueURL: String = "http:/"+hostname+"/kvkapi/getDisplayQueAns/{displayFilter}"
+  
+  val addQueUrl: String = "http://"+hostname+"/kvkapi/addQueAns"
+  
+  val updateQueUrl: String = "http://"+hostname+"/kvkapi/updateQueAns"
+  
+  val deleteQueUrl: String = "http://"+hostname+"/kvkapi/deleteQueAns"
   
   def firstAction = Action { implicit request =>
     Ok("The Request is ["+request+"]")
@@ -102,11 +108,47 @@ class OnlineTestController @Inject() (ws: WSClient) (implicit context: Execution
           //val result = ws.url(allQueAnsURL).withHeaders("content-type" -> "application/json").post(Json.toJson(success))
           val result = ws.url(addQueUrl).withHeaders("content-type" -> "application/json").put(Json.toJson(success))
           println("result -> "+result)
-          result.onComplete { 
-            case Success(value) => Ok(value.json)
-            case Failure(e) => Ok(Json.obj("Status" -> e.getLocalizedMessage))
+          result map { response =>
+            response.status match {
+              case code if 200 to 299 contains code => Ok(response.statusText)
+              case _ => InternalServerError(response.statusText)
+            }
           }
-          Future(Ok(Json.obj("Status" -> "success")))
-        })
+        }
+     )
+  }
+  
+  def updateQueAns = Action.async(parse.json) { implicit request =>
+    println("request -> "+request)
+    println("request.body -> "+request.body)
+    val queAns = request.body
+    queAns.validate[QuesAnsListForUpdate].fold(
+        invalid = { error => 
+          println("error --> "+error)
+          Future(InternalServerError(Json.obj("Status" -> "failure","error " -> "")))                               
+        },
+        valid = { success => 
+          //val result = ws.url(allQueAnsURL).withHeaders("content-type" -> "application/json").post(Json.toJson(success))
+          val result = ws.url(updateQueUrl).withHeaders("content-type" -> "application/json").post(Json.toJson(success))
+          println("result -> "+result)
+          result map { response =>
+            response.status match {
+              case code if 200 to 299 contains code => Ok(response.statusText)
+              case _ => InternalServerError(response.statusText)
+            }
+          }
+        }
+     )
+  }
+  
+  def deleteQueAns(id: String) = Action.async { implicit request =>
+    val result = ws.url(deleteQueUrl+"?id="+id).delete()
+          println("result -> "+result)
+          result map { response =>
+            response.status match {
+              case code if 200 to 299 contains code => Ok(response.statusText)
+              case _ => InternalServerError(response.statusText)
+            }
+          }
   }
 }
